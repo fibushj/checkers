@@ -3,11 +3,11 @@
 # ===============================================================================
 
 import abstract
+from players import simple_player
 from utils import MiniMaxWithAlphaBetaPruning, INFINITY, run_with_limited_time, ExceededTimeError
 from checkers.consts import EM, PAWN_COLOR, KING_COLOR, OPPONENT_COLOR, MAX_TURNS_NO_JUMP
 import time
 from collections import defaultdict
-from players import simple_player
 
 # ===============================================================================
 # Globals
@@ -21,65 +21,27 @@ KING_WEIGHT = 1.5
 # Player
 # ===============================================================================
 
-class Player(simple_player.Player):
-
+class Player(simple_player):
     def __init__(self, setup_time, player_color, time_per_k_turns, k):
-        """
-        this method is the constructor of our player. It is the same as the constructor of simple_player
-        except for adding an attribute which will help us to manage the time in a smarter way.
-        """
         abstract.AbstractPlayer.__init__(self, setup_time, player_color, time_per_k_turns, k)
         self.clock = time.process_time()
 
-        # TODO fix comments
-
         # We are simply providing (remaining time / remaining turns) for each turn in round.
         # Taking a spare time of 0.05 seconds.
-
         self.turns_remaining_in_round = self.k
         self.time_remaining_in_round = self.time_per_k_turns
-
-        """
-        We erased the original line which appeared in the simple_player constructor.
-        """
-        # self.time_for_current_move = self.time_remaining_in_round / self.turns_remaining_in_round - 0.05
-
-        # The idea of our time management is as follows: The first turn will receive half of time_per_k_turns.
-        # the second turn will receive quarter of time_per_k_turns, the third one will receive 1/8 and so on.
-        # The intuition behind this is that in the beginning we need to predict as much scenarios as possible.
-
-        self.partial_amount = 2
-        self.time_for_current_move = self.time_remaining_in_round / self.partial_amount
+        self.time_for_current_move = self.time_remaining_in_round / self.turns_remaining_in_round - 0.05
 
     def get_move(self, game_state, possible_moves):
-        """
-        We updated the get_move method in order for it to fit to our time management technique.
-        As well, we added a slight change in order to prevent a situation in which the resources are exceeded.
-        :param game_state:
-        :param possible_moves:
-        :return:
-        """
         self.clock = time.process_time()
-        # updating the time for the current move according tot he partial amount.
-        self.time_for_current_move = self.time_remaining_in_round / self.partial_amount
-        # increasing the partial amount.
+        # we want to give more time to turns in which the amount of possible moves is bigger.
+        if len(possible_moves) < 6:
+            # in case the amount of possible moves is less than 6 we reduce the time for the current move
+            self.time_for_current_move = 0.7 * (self.time_remaining_in_round / self.turns_remaining_in_round - 0.05)
+        else:
+            # otherwise, we divided the time uniformly.
+            self.time_for_current_move = self.time_remaining_in_round / self.turns_remaining_in_round - 0.05
         if len(possible_moves) == 1:
-            if self.turns_remaining_in_round == 1:
-                """
-                If that is the last turn in the round, we reset the turns and the time counters. As well the partial
-                amount to 2.
-                """
-                self.turns_remaining_in_round = self.k
-                self.time_remaining_in_round = self.time_per_k_turns
-                # restart the partial amount to 2.
-                self.partial_amount = 2
-            else:
-                # increase the partial amount
-                self.partial_amount *= 2
-                # decrease remaining turns by 1
-                self.turns_remaining_in_round -= 1
-                # update the remaining time in the current round
-                self.time_remaining_in_round -= (time.process_time() - self.clock)  # Update remaining time
             return possible_moves[0]
 
         current_depth = 1
@@ -127,18 +89,47 @@ class Player(simple_player.Player):
             current_depth += 1
 
         if self.turns_remaining_in_round == 1:
-            # initializing the time,turns and partial amount.
-            self.partial_amount = 2
             self.turns_remaining_in_round = self.k
             self.time_remaining_in_round = self.time_per_k_turns
         else:
-            # updating the partial amount, the remaining turns and time.
-            self.partial_amount *= 2
             self.turns_remaining_in_round -= 1
             self.time_remaining_in_round -= (time.process_time() - self.clock)
         return best_move
 
+    def utility(self, state):
+        if len(state.get_possible_moves()) == 0:
+            return INFINITY if state.curr_player != self.color else -INFINITY
+        if state.turns_since_last_jump >= MAX_TURNS_NO_JUMP:
+            return 0
+
+        piece_counts = defaultdict(lambda: 0)
+        for loc_val in state.board.values():
+            if loc_val != EM:
+                piece_counts[loc_val] += 1
+
+        opponent_color = OPPONENT_COLOR[self.color]
+
+        my_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[self.color]]) +
+                (KING_WEIGHT * piece_counts[KING_COLOR[self.color]]))
+        op_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[opponent_color]]) +
+                (KING_WEIGHT * piece_counts[KING_COLOR[opponent_color]]))
+        if my_u == 0:
+            # I have no tools left
+            return -INFINITY
+        elif op_u == 0:
+            # The opponent has no tools left
+            return INFINITY
+        else:
+            return my_u - op_u
+
+    def selective_deepening_criterion(self, state):
+        # Simple player does not selectively deepen into certain nodes.
+        return False
+
+    def no_more_time(self):
+        return (time.process_time() - self.clock) >= self.time_for_current_move
+
     def __repr__(self):
-        return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'improved')
+        return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'simple')
 
 # c:\python35\python.exe run_game.py 3 3 3 y simple_player random_player
