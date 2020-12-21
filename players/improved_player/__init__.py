@@ -57,6 +57,9 @@ class Player(simple_player.Player):
         minimax = MiniMaxWithAlphaBetaPruning(self.utility, self.color, self.no_more_time,
                                               self.selective_deepening_criterion)
 
+        # initializing a counter of the amount of times the same move was returned from minimax in a row.
+        same_rounds_counter = 0
+
         # Iterative deepening until the time runs out.
         while True:
 
@@ -77,6 +80,24 @@ class Player(simple_player.Player):
             if self.no_more_time():
                 print('no more time')
                 break
+
+            if prev_alpha == alpha and move.origin_loc == best_move.origin_loc and \
+                    move.target_loc == best_move.target_loc and current_depth > 5:
+                # if the move and the alpha which were returned are the same as the former ones, we increase the counter
+                # as well, we increase the counter only if the current depth is more than 5 because we don't want to
+                # judge according to the first iterations which may not be testifying.
+                same_rounds_counter += 1
+            else:
+                same_rounds_counter = 0
+
+            if self.turns_remaining_in_round > 1:
+                """
+                We want to save time for future turns.
+                We will save time for future turns only if there are at least 2 turns in the round ahead.
+                """
+                if same_rounds_counter == 3:
+                    best_move = move
+                    break
 
             prev_alpha = alpha
             best_move = move
@@ -99,40 +120,9 @@ class Player(simple_player.Player):
             self.time_remaining_in_round -= (time.process_time() - self.clock)
         return best_move
 
-    def utility(self, state):
-        if len(state.get_possible_moves()) == 0:
-            return INFINITY if state.curr_player != self.color else -INFINITY
-        if state.turns_since_last_jump >= MAX_TURNS_NO_JUMP:
-            return 0
 
-        piece_counts = defaultdict(lambda: 0)
-        for loc_val in state.board.values():
-            if loc_val != EM:
-                piece_counts[loc_val] += 1
-
-        opponent_color = OPPONENT_COLOR[self.color]
-
-        my_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[self.color]]) +
-                (KING_WEIGHT * piece_counts[KING_COLOR[self.color]]))
-        op_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[opponent_color]]) +
-                (KING_WEIGHT * piece_counts[KING_COLOR[opponent_color]]))
-        if my_u == 0:
-            # I have no tools left
-            return -INFINITY
-        elif op_u == 0:
-            # The opponent has no tools left
-            return INFINITY
-        else:
-            return my_u - op_u
-
-    def selective_deepening_criterion(self, state):
-        # Simple player does not selectively deepen into certain nodes.
-        return False
-
-    def no_more_time(self):
-        return (time.process_time() - self.clock) >= self.time_for_current_move
 
     def __repr__(self):
-        return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'simple')
+        return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'improved')
 
 # c:\python35\python.exe run_game.py 3 3 3 y simple_player random_player
