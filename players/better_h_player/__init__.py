@@ -101,17 +101,17 @@ class Player(simple_player.Player):
     #              (KING_WEIGHT * piece_counts[KING_COLOR[color]]))
     #     return score
 
-    def is_cell_in_board(cell):
+    def is_cell_in_board(self, cell):
         return (cell[0] >= 0 and cell[0] < BOARD_ROWS and cell[1] >= 0 and
                 cell[1] < BOARD_COLS)
 
-    def distance_from_center(cell):
+    def distance_from_center(self, cell):
 
         d_rows = abs(cell[0]-CENTER_BOARD)
         d_cols = abs(cell[1]-CENTER_BOARD)
         return math.sqrt(pow(d_rows, 2) + pow(d_cols, 2))
 
-    def grade_distance(distance):
+    def grade_distance(self, distance):
         return MAX_DISTANCE_FROM_CENTER - distance
 
     def utility(self, state):
@@ -158,3 +158,5 @@ class Player(simple_player.Player):
     def selective_deepening_criterion(self, state):
         # Simple player does not selectively deepen into certain nodes.
         return False
+    def __repr__(self):
+        return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'better_h')
