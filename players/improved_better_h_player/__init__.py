@@ -1,10 +1,13 @@
 # ===============================================================================
 # Imports
 # ===============================================================================
+import math
 
 import abstract
+from players.better_h_player import CENTER_BOARD, MAX_DISTANCE_FROM_CENTER
 from utils import MiniMaxWithAlphaBetaPruning, INFINITY, run_with_limited_time, ExceededTimeError
-from checkers.consts import EM, PAWN_COLOR, KING_COLOR, OPPONENT_COLOR, MAX_TURNS_NO_JUMP
+from checkers.consts import EM, PAWN_COLOR, KING_COLOR, OPPONENT_COLOR, MAX_TURNS_NO_JUMP, BOARD_ROWS, MY_COLORS, \
+    BOARD_COLS
 import time
 from players import simple_player
 from collections import defaultdict
@@ -139,7 +142,20 @@ class Player(simple_player.Player):
         return best_move
 
     def __repr__(self):
-        return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'improved_better_h_player')
+        return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'improved_better_h')
+
+    def is_cell_in_board(self, cell):
+        return (cell[0] >= 0 and cell[0] < BOARD_ROWS and cell[1] >= 0 and
+                cell[1] < BOARD_COLS)
+
+    def distance_from_center(self, cell):
+
+        d_rows = abs(cell[0] - CENTER_BOARD)
+        d_cols = abs(cell[1] - CENTER_BOARD)
+        return math.sqrt(pow(d_rows, 2) + pow(d_cols, 2))
+
+    def grade_distance(self, distance):
+        return MAX_DISTANCE_FROM_CENTER - distance
 
     def utility(self, state):
         if len(state.get_possible_moves()) == 0:
@@ -148,11 +164,26 @@ class Player(simple_player.Player):
             return 0
 
         piece_counts = defaultdict(lambda: 0)
-        for loc_val in state.board.values():
+
+        my_rows_score = 0
+        op_rows_score = 0
+        my_kings_dist_score = 0
+        op_kings_dist_score = 0
+        opponent_color = OPPONENT_COLOR[self.color]
+        for loc, loc_val in state.board.items():
             if loc_val != EM:
                 piece_counts[loc_val] += 1
+                if loc_val in MY_COLORS[self.color]:
+                    my_rows_score += loc[0]
 
-        opponent_color = OPPONENT_COLOR[self.color]
+                    if loc_val == KING_COLOR[self.color]:
+                        my_kings_dist_score += self.grade_distance(
+                            self.distance_from_center(loc))
+                else:
+                    op_rows_score += (BOARD_ROWS - loc[0])
+                    if loc_val == KING_COLOR[opponent_color]:
+                        op_kings_dist_score += self.grade_distance(
+                            self.distance_from_center(loc))
 
         my_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[self.color]]) +
                 (KING_WEIGHT * piece_counts[KING_COLOR[self.color]]))
@@ -165,11 +196,6 @@ class Player(simple_player.Player):
             # The opponent has no tools left
             return INFINITY
         else:
-            return my_u - op_u
-
-
-    def no_more_time(self):
-        return (time.process_time() - self.clock) >= self.time_for_current_move
-
+            return my_u + my_rows_score + my_kings_dist_score - (op_u + op_rows_score + op_kings_dist_score)
 
 # c:\python35\python.exe run_game.py 3 3 3 y simple_player random_player
