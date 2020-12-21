@@ -25,8 +25,10 @@ MAX_DISTANCE_FROM_CENTER = 4.95  # the distance from (0, 0) to (3.5, 3.5)
 
 class Player(simple_player.Player):
     def __init__(self, setup_time, player_color, time_per_k_turns, k):
-        simple_player.Player.__init__(
-            self, setup_time, player_color, time_per_k_turns, k)
+        simple_player.Player.__init__(self, setup_time, player_color, time_per_k_turns, k)
+        # Initialize Minimax algorithm, still not running anything
+        self.minimax = MiniMaxWithAlphaBetaPruning(self.utility, self.color, self.no_more_time,
+                                                   self.selective_deepening_criterion)
 
     def get_move(self, game_state, possible_moves):
         self.clock = time.process_time()
@@ -50,8 +52,7 @@ class Player(simple_player.Player):
         best_move = possible_moves[0]
 
         # Initialize Minimax algorithm, still not running anything
-        minimax = MiniMaxWithAlphaBetaPruning(self.utility, self.color, self.no_more_time,
-                                              self.selective_deepening_criterion)
+
 
         # Iterative deepening until the time runs out.
         while True:
@@ -64,7 +65,7 @@ class Player(simple_player.Player):
 
             try:
                 (alpha, move), run_time = run_with_limited_time(
-                    minimax.search, (game_state, current_depth, -INFINITY, INFINITY, True), {},
+                    self.minimax.search, (game_state, current_depth, -INFINITY, INFINITY, True), {},
                     self.time_for_current_move - (time.process_time() - self.clock))
             except (ExceededTimeError, MemoryError):
                 print('no more time, achieved depth {}'.format(current_depth))
