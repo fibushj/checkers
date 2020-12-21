@@ -24,6 +24,26 @@ KING_WEIGHT = 1.5
 class Player(simple_player.Player):
     def __init__(self, setup_time, player_color, time_per_k_turns, k):
         simple_player.Player.__init__(self, setup_time, player_color, time_per_k_turns, k)
+        # Initialize Minimax algorithm, still not running anything
+        self.minimax = MiniMaxWithAlphaBetaPruning(self.utility, self.color, self.no_more_time,
+                                              self.selective_deepening_criterion)
+
+    def selective_deepening_criterion(self, state):
+
+        """
+        This method is used for selective deepening during the minimax search algorithm. In case the next move is a
+        capture, this is a move that worths further investigation, thus we force the algorithm to keep searching even if
+        the depth limit was reached.
+        """
+
+        # Get all capture moves available in current state.
+        possible_capture_moves = state.calc_capture_moves()
+
+        # If next move is a capture - Go to a deeper level.
+        if possible_capture_moves:
+            return True
+
+        return False
 
     def get_move(self, game_state, possible_moves):
         self.clock = time.process_time()
@@ -31,7 +51,7 @@ class Player(simple_player.Player):
         if len(possible_moves) < 5 and self.turns_remaining_in_round > 0:
             # in case the amount of possible moves is less than 6 we reduce the time for the current move
             self.time_for_current_move = 0.7 * (self.time_remaining_in_round / self.turns_remaining_in_round - 0.05)
-            print('{} possible moves'.format(len(possible_moves)))
+            #print('{} possible moves'.format(len(possible_moves)))
         else:
             # otherwise, we divided the time uniformly.
             self.time_for_current_move = self.time_remaining_in_round / self.turns_remaining_in_round - 0.05
@@ -54,9 +74,7 @@ class Player(simple_player.Player):
         # Choosing an arbitrary move in case Minimax does not return an answer:
         best_move = possible_moves[0]
 
-        # Initialize Minimax algorithm, still not running anything
-        minimax = MiniMaxWithAlphaBetaPruning(self.utility, self.color, self.no_more_time,
-                                              self.selective_deepening_criterion)
+
 
         # initializing a counter of the amount of times the same move was returned from minimax in a row.
         same_rounds_counter = 0
@@ -72,7 +90,7 @@ class Player(simple_player.Player):
 
             try:
                 (alpha, move), run_time = run_with_limited_time(
-                    minimax.search, (game_state, current_depth, -INFINITY, INFINITY, True), {},
+                    self.minimax.search, (game_state, current_depth, -INFINITY, INFINITY, True), {},
                     self.time_for_current_move - (time.process_time() - self.clock))
             except (ExceededTimeError, MemoryError):
                 print('no more time, achieved depth {}'.format(current_depth))
@@ -82,7 +100,8 @@ class Player(simple_player.Player):
                 print('no more time')
                 break
 
-            if prev_alpha == alpha and move.origin_loc == best_move.origin_loc and move.target_loc == best_move.target_loc and current_depth > 2:
+            if prev_alpha == alpha and move.origin_loc == best_move.origin_loc and \
+                    move.target_loc == best_move.target_loc and current_depth > 2:
                 # if the move and the alpha which were returned are the same as the former ones, we increase the counter
                 # as well, we increase the counter only if the current depth is more than 5 because we don't want to
                 # judge according to the first iterations which may not be testifying.
@@ -90,13 +109,13 @@ class Player(simple_player.Player):
             else:
                 same_rounds_counter = 0
 
-            if self.turns_remaining_in_round > 0:
+            if self.turns_remaining_in_round > 1:
                 """
                 We want to save time for future turns.
                 We will save time for future turns only if there are at least 2 turns in the round ahead.
                 """
                 if same_rounds_counter == 3:
-                    print('{} times in a row the same move'.format(same_rounds_counter))
+                    #print('{} times in a row the same move'.format(same_rounds_counter))
                     best_move = move
                     break
 
