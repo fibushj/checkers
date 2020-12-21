@@ -28,9 +28,10 @@ class Player(simple_player.Player):
     def get_move(self, game_state, possible_moves):
         self.clock = time.process_time()
         # we want to give more time to turns in which the amount of possible moves is bigger.
-        if len(possible_moves) < 6:
+        if len(possible_moves) < 5 and self.turns_remaining_in_round > 0:
             # in case the amount of possible moves is less than 6 we reduce the time for the current move
             self.time_for_current_move = 0.7 * (self.time_remaining_in_round / self.turns_remaining_in_round - 0.05)
+            print('{} possible moves'.format(len(possible_moves)))
         else:
             # otherwise, we divided the time uniformly.
             self.time_for_current_move = self.time_remaining_in_round / self.turns_remaining_in_round - 0.05
@@ -81,8 +82,7 @@ class Player(simple_player.Player):
                 print('no more time')
                 break
 
-            if prev_alpha == alpha and move.origin_loc == best_move.origin_loc and \
-                    move.target_loc == best_move.target_loc and current_depth > 5:
+            if prev_alpha == alpha and move.origin_loc == best_move.origin_loc and move.target_loc == best_move.target_loc and current_depth > 2:
                 # if the move and the alpha which were returned are the same as the former ones, we increase the counter
                 # as well, we increase the counter only if the current depth is more than 5 because we don't want to
                 # judge according to the first iterations which may not be testifying.
@@ -90,12 +90,13 @@ class Player(simple_player.Player):
             else:
                 same_rounds_counter = 0
 
-            if self.turns_remaining_in_round > 1:
+            if self.turns_remaining_in_round > 0:
                 """
                 We want to save time for future turns.
                 We will save time for future turns only if there are at least 2 turns in the round ahead.
                 """
                 if same_rounds_counter == 3:
+                    print('{} times in a row the same move'.format(same_rounds_counter))
                     best_move = move
                     break
 
