@@ -21,16 +21,9 @@ KING_WEIGHT = 1.5
 # Player
 # ===============================================================================
 
-class Player(simple_player):
+class Player(simple_player.Player):
     def __init__(self, setup_time, player_color, time_per_k_turns, k):
-        abstract.AbstractPlayer.__init__(self, setup_time, player_color, time_per_k_turns, k)
-        self.clock = time.process_time()
-
-        # We are simply providing (remaining time / remaining turns) for each turn in round.
-        # Taking a spare time of 0.05 seconds.
-        self.turns_remaining_in_round = self.k
-        self.time_remaining_in_round = self.time_per_k_turns
-        self.time_for_current_move = self.time_remaining_in_round / self.turns_remaining_in_round - 0.05
+        simple_player.Player.__init__(self, setup_time, player_color, time_per_k_turns, k)
 
     def get_move(self, game_state, possible_moves):
         self.clock = time.process_time()
@@ -41,7 +34,17 @@ class Player(simple_player):
         else:
             # otherwise, we divided the time uniformly.
             self.time_for_current_move = self.time_remaining_in_round / self.turns_remaining_in_round - 0.05
+        # if there is only one possible move we still have to update the counters!
         if len(possible_moves) == 1:
+            if self.turns_remaining_in_round == 1:
+                # In case this was the last turn, we need to reset the counters
+                self.time_remaining_in_round = self.time_per_k_turns
+                self.turns_remaining_in_round = self.k
+            else:
+                # in case there are more turns in this round, we update the counters properly.
+                self.turns_remaining_in_round -= 1
+                self.time_remaining_in_round -= (time.process_time() - self.clock)
+            # anyway we return the only possible move.
             return possible_moves[0]
 
         current_depth = 1
