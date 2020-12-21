@@ -6,16 +6,18 @@
 from players import simple_player
 import abstract
 from utils import MiniMaxWithAlphaBetaPruning, INFINITY, run_with_limited_time, ExceededTimeError
-from checkers.consts import BOARD_ROWS, EM, MY_COLORS, PAWN_COLOR, KING_COLOR, OPPONENT_COLOR, MAX_TURNS_NO_JUMP
+from checkers.consts import BOARD_COLS, BOARD_ROWS, EM, MY_COLORS, PAWN_COLOR, KING_COLOR, OPPONENT_COLOR, MAX_TURNS_NO_JUMP
 import time
 from collections import defaultdict
-
+import math
 # ===============================================================================
 # Globals
 # ===============================================================================
 
 PAWN_WEIGHT = 1
 KING_WEIGHT = 1.5
+CENTER_BOARD = 3.5  # the middle of 0 and 7
+MAX_DISTANCE_FROM_CENTER = 4.95  # the distance from (0, 0) to (3.5, 3.5)
 
 # ===============================================================================
 # Player
@@ -112,6 +114,19 @@ class Player(simple_player.Player):
     #              (KING_WEIGHT * piece_counts[KING_COLOR[color]]))
     #     return score
 
+    def is_cell_in_board(cell):
+        return (cell[0] >= 0 and cell[0] < BOARD_ROWS and cell[1] >= 0 and
+                cell[1] < BOARD_COLS)
+
+    def distance_from_center(cell):
+
+        d_rows = abs(cell[0]-CENTER_BOARD)
+        d_cols = abs(cell[1]-CENTER_BOARD)
+        return math.sqrt(pow(d_rows, 2) + pow(d_cols, 2))
+
+    def grade_distance(distance):
+        return MAX_DISTANCE_FROM_CENTER - distance
+
     def utility(self, state):
         if len(state.get_possible_moves()) == 0:
             return INFINITY if state.curr_player != self.color else -INFINITY
@@ -119,22 +134,27 @@ class Player(simple_player.Player):
             return 0
 
         piece_counts = defaultdict(lambda: 0)
-        for loc_val in state.board.values():
-            if loc_val != EM:
-                piece_counts[loc_val] += 1
 
         my_rows_score = 0
         op_rows_score = 0
+        my_kings_dist_score = 0
+        op_kings_dist_score = 0
+        opponent_color = OPPONENT_COLOR[self.color]
         for loc, loc_val in state.board.items():
             if loc_val != EM:
+                piece_counts[loc_val] += 1
                 if loc_val in MY_COLORS[self.color]:
                     my_rows_score += loc[0]
+
+                    if loc_val == KING_COLOR[self.color]:
+                        my_kings_dist_score += self.grade_distance(
+                            self.distance_from_center(loc))
                 else:
                     op_rows_score += (BOARD_ROWS-loc[0])
+                    if loc_val == KING_COLOR[opponent_color]:
+                        op_kings_dist_score += self.grade_distance(
+                            self.distance_from_center(loc))
 
-        opponent_color = OPPONENT_COLOR[self.color]
-        # score(piece_counts, self.color)
-        # score(piece_counts, opponent_color)
         my_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[self.color]]) +
                 (KING_WEIGHT * piece_counts[KING_COLOR[self.color]]))
         op_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[opponent_color]]) +
@@ -146,7 +166,7 @@ class Player(simple_player.Player):
             # The opponent has no tools left
             return INFINITY
         else:
-            return my_u+my_rows_score - (op_u + op_rows_score)
+            return my_u + my_rows_score + my_kings_dist_score - (op_u + op_rows_score + op_kings_dist_score)
 
     def selective_deepening_criterion(self, state):
         # Simple player does not selectively deepen into certain nodes.
