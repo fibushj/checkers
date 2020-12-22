@@ -29,20 +29,10 @@ class Player(simple_player.Player):
                                               self.selective_deepening_criterion)
 
     def selective_deepening_criterion(self, state):
-
-        """
-        This method is used for selective deepening during the minimax search algorithm. In case the next move is a
-        capture, this is a move that worths further investigation, thus we force the algorithm to keep searching even if
-        the depth limit was reached.
-        """
-
-        # Get all capture moves available in current state.
-        possible_capture_moves = state.calc_capture_moves()
-
-        # If next move is a capture - Go to a deeper level.
-        if possible_capture_moves:
+        # capture is a more dangerous/significant move than a regular movement and therefore it worths deeping.
+        capture_moves = state.calc_capture_moves()
+        if capture_moves is not None:
             return True
-
         return False
 
     def get_move(self, game_state, possible_moves):
