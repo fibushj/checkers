@@ -180,7 +180,7 @@ class Player(simple_player.Player):
                         my_kings_dist_score += self.grade_distance(
                             self.distance_from_center(loc))
                 else:
-                    op_rows_score += (BOARD_ROWS - loc[0])
+                    op_rows_score += (BOARD_ROWS - loc[0]-1)
                     if loc_val == KING_COLOR[opponent_color]:
                         op_kings_dist_score += self.grade_distance(
                             self.distance_from_center(loc))
