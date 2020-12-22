@@ -144,20 +144,22 @@ class Player(simple_player.Player):
     def __repr__(self):
         return '{} {}'.format(abstract.AbstractPlayer.__repr__(self), 'improved_better_h')
 
-    def is_cell_in_board(self, cell):
-        return (cell[0] >= 0 and cell[0] < BOARD_ROWS and cell[1] >= 0 and
-                cell[1] < BOARD_COLS)
 
     def distance_from_center(self, cell):
-
+        """Returns the distance of the cell from (3.5, 3.5)
+        """
         d_rows = abs(cell[0] - CENTER_BOARD)
         d_cols = abs(cell[1] - CENTER_BOARD)
         return math.sqrt(pow(d_rows, 2) + pow(d_cols, 2))
 
     def grade_distance(self, distance):
+        """Returns the grade of the distance, as elaborated in the pdf
+        """        
         return MAX_DISTANCE_FROM_CENTER - distance
 
     def utility(self, state):
+        """Elaboration for this function is in the pdf
+        """        
         if len(state.get_possible_moves()) == 0:
             return INFINITY if state.curr_player != self.color else -INFINITY
         if state.turns_since_last_jump >= MAX_TURNS_NO_JUMP:
