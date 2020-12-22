@@ -192,10 +192,6 @@ class Player(simple_player.Player):
 
 
 
-
-
-
-
         my_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[self.color]]) +
                 (KING_WEIGHT * piece_counts[KING_COLOR[self.color]]))
         op_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[opponent_color]]) +
