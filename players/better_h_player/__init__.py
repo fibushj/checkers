@@ -96,22 +96,18 @@ class Player(simple_player.Player):
             self.time_remaining_in_round -= (time.process_time() - self.clock)
         return best_move
 
-    # def score(self, piece_counts, color):
-    #     score = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[color]]) +
-    #              (KING_WEIGHT * piece_counts[KING_COLOR[color]]))
-    #     return score
-
-    def is_cell_in_board(self, cell):
-        return (cell[0] >= 0 and cell[0] < BOARD_ROWS and cell[1] >= 0 and
-                cell[1] < BOARD_COLS)
-
+        
     def distance_from_center(self, cell):
-
+        """Returns the distance of the cell from (3.5, 3.5)
+        """
         d_rows = abs(cell[0]-CENTER_BOARD)
         d_cols = abs(cell[1]-CENTER_BOARD)
         return math.sqrt(pow(d_rows, 2) + pow(d_cols, 2))
 
+    
     def grade_distance(self, distance):
+        """Returns the grade of the distance, as elaborated in the pdf
+        """
         return MAX_DISTANCE_FROM_CENTER - distance
 
     def grade_location(self,):
@@ -121,6 +117,8 @@ class Player(simple_player.Player):
         """
 
     def utility(self, state):
+        """Elaboration for this function is in the pdf
+        """
         if len(state.get_possible_moves()) == 0:
             return INFINITY if state.curr_player != self.color else -INFINITY
         if state.turns_since_last_jump >= MAX_TURNS_NO_JUMP:
@@ -128,10 +126,10 @@ class Player(simple_player.Player):
 
         piece_counts = defaultdict(lambda: 0)
 
-        my_rows_score = 0
-        op_rows_score = 0
-        my_kings_dist_score = 0
-        op_kings_dist_score = 0
+        my_rows_score = 0 #score given for position of my pieces
+        op_rows_score = 0 #score given for position of opponent's pieces
+        my_kings_dist_score = 0 #score given according to my kings positions
+        op_kings_dist_score = 0#score given according to opponent's kings positions
         opponent_color = OPPONENT_COLOR[self.color]
         my_loc_grade = 0
         op_loc_grade = 0
@@ -142,6 +140,7 @@ class Player(simple_player.Player):
         for loc, loc_val in state.board.items():
             if loc_val != EM:
                 piece_counts[loc_val] += 1
+
                 if loc_val in MY_COLORS[self.color]:
                     my_rows_score += loc[0]
                     curr_color = self.color
@@ -152,7 +151,7 @@ class Player(simple_player.Player):
                         my_kings_dist_score += self.grade_distance(
                             self.distance_from_center(loc))
                 else:
-                    op_rows_score += (BOARD_ROWS-loc[0]-1)
+                    op_rows_score += (BOARD_ROWS-loc[0]-1) # 7-row
                     curr_color = opponent_color
                     op_curr_color = self.color
                     is_opp = True
