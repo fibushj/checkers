@@ -7,7 +7,7 @@ import abstract
 from players.better_h_player import CENTER_BOARD, MAX_DISTANCE_FROM_CENTER
 from utils import MiniMaxWithAlphaBetaPruning, INFINITY, run_with_limited_time, ExceededTimeError
 from checkers.consts import EM, PAWN_COLOR, KING_COLOR, OPPONENT_COLOR, MAX_TURNS_NO_JUMP, BOARD_ROWS, MY_COLORS, \
-    BOARD_COLS
+    BOARD_COLS, BACK_ROW
 import time
 from players import simple_player
 from collections import defaultdict
@@ -170,20 +170,62 @@ class Player(simple_player.Player):
         my_kings_dist_score = 0
         op_kings_dist_score = 0
         opponent_color = OPPONENT_COLOR[self.color]
+        my_loc_grade = 0
+        op_loc_grade = 0
+        # now we want to assess how good for us is the state of the board.
+        curr_color = None
+        op_curr_color = None
+        is_opp = False
         for loc, loc_val in state.board.items():
             if loc_val != EM:
                 piece_counts[loc_val] += 1
                 if loc_val in MY_COLORS[self.color]:
                     my_rows_score += loc[0]
+                    curr_color = self.color
+                    op_curr_color = opponent_color
+                    is_opp = False
 
                     if loc_val == KING_COLOR[self.color]:
                         my_kings_dist_score += self.grade_distance(
                             self.distance_from_center(loc))
                 else:
-                    op_rows_score += (BOARD_ROWS - loc[0]-1)
+                    op_rows_score += (BOARD_ROWS - loc[0] - 1)
+                    curr_color = opponent_color
+                    op_curr_color = self.color
+                    is_opp = True
                     if loc_val == KING_COLOR[opponent_color]:
                         op_kings_dist_score += self.grade_distance(
                             self.distance_from_center(loc))
+
+                # in order to assess how good is the board state for us, we should encourage positions which are good for us.
+                # we will encourage, at the earlier stages of the game, being in the edges of the board because it is
+                # either making a pawn to be a king or protecting a location from the opponent.
+                # we will encourage kings. kings are good for us.
+
+                loc_grade = 0
+                if loc_val == KING_COLOR[curr_color]:
+                    # first of all we like kings. they are good for us. Thus, we give kings high score.
+                    loc_grade = 5
+                elif piece_counts[PAWN_COLOR[op_curr_color]] + piece_counts[PAWN_COLOR[op_curr_color]] <= 5:
+                    # it means that less than 5 pawns are left and we are in an advance stage of the game.
+                    # we should encourage our pawns to become kings.
+                    loc_grade = (8 - loc[0] - BACK_ROW[curr_color]) / 2 + 2
+                elif loc[0] == BACK_ROW[curr_color]:
+                    # the pawn is becoming a king
+                    loc_grade = 5
+                elif loc[0] == BOARD_ROWS - BACK_ROW[curr_color]:
+                    # a pawn is being protecting
+                    loc_grade = 4.25
+                elif loc[1] == 0 or loc[1] == 7:
+                    # in this case the opponent cannot jump over those pawns
+                    loc_grade = 3.5
+                else:
+                    # there is nothing special
+                    loc_grade = 2.5
+                if is_opp:
+                    op_loc_grade += loc_grade
+                else:
+                    my_loc_grade += loc_grade
 
         my_u = ((PAWN_WEIGHT * piece_counts[PAWN_COLOR[self.color]]) +
                 (KING_WEIGHT * piece_counts[KING_COLOR[self.color]]))
@@ -196,6 +238,7 @@ class Player(simple_player.Player):
             # The opponent has no tools left
             return INFINITY
         else:
-            return my_u + my_rows_score + my_kings_dist_score - (op_u + op_rows_score + op_kings_dist_score)
+            return my_u + my_rows_score + my_kings_dist_score + my_loc_grade - \
+                   (op_u + op_rows_score + op_kings_dist_score + op_loc_grade)
 
 # c:\python35\python.exe run_game.py 3 3 3 y simple_player random_player
